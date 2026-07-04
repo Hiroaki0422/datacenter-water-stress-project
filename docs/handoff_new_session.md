@@ -1,10 +1,10 @@
-# Handoff: Water Stress Watch — Project Status & Week 4 Handoff
+# Handoff: Water Stress Watch — Project Status & Week 5 Handoff
 
-> **Purpose:** Status snapshot as of 2026-07-04. **v0 shipped (Weeks 1-3); v1 ML training foundation shipped (Week 4).** Next session: Hiroaki runs the XGBoost training on Colab Pro A100 interactively, then ships v1.0 outputs (model artifact + per-facility predictions).
+> **Purpose:** Status snapshot as of 2026-07-04. **v0 shipped (Weeks 1-3); v1 ML training foundation shipped (Week 4); Week 5 = Hiroaki's interactive Colab Pro A100 run + post-Week-4 polish backlog.** The next session reads `docs/handoff_week_5.md` to start.
 
 ---
 
-## Project Status (end of Week 4)
+## Project Status (end of Week 4 → start of Week 5)
 
 | Week | Tasks | Status |
 |---|---|---|
@@ -12,11 +12,11 @@
 | **2** — Estimation pipeline | MW estimation, climate features, water physics, stress join, sensitivity | ✅ Complete |
 | **3** — Map + case study + writeup | Folium map, Phoenix case study, methodology, README, blog draft | ✅ Complete |
 | **4** — v1 ML training kickoff | Training set (43 rows), v1 features (1,575 × 42), Colab notebook skeleton (16 cells), methodology Section 16, output schema | ✅ Complete |
-| **5+** — v1 model training on Colab Pro | Hiroaki runs the XGBoost training interactively on A100; downloads model + predictions | 🟡 **Next** |
+| **5** — v1 model training on Colab Pro + post-Week-4 polish | v0-vs-v1 comparison OR v0.5 design-day wet-bulb fix OR Lumen/Cogent reclassification (Hiroaki picks) | 🟡 **Next** |
 
 **Repository:** https://github.com/Hiroaki0422/datacenter-water-stress-project (public, MIT code + CC-BY 4.0 data/docs)
 
-> **Important:** This handoff is current as of 2026-07-04. Earlier handoff versions (e.g. `handoff_week_2.md`) describe their respective weeks and are still on disk for reference, but the next session should start from `docs/handoff_week_4.md`.
+> **Important:** This handoff is current as of 2026-07-04. The next session should start from `docs/handoff_week_5.md`. Earlier handoffs (`handoff_week_2.md`, `handoff_week_4.md`) describe their respective weeks and are on disk for reference.
 
 ---
 
@@ -175,19 +175,29 @@ These are real issues from Week 4, not nice-to-haves. Flagging for Hiroaki to we
 
 ## How to Start the Next Session
 
-**Hiroaki's interactive work (Week 5+):**
+**Read first:** `docs/handoff_week_5.md` — the self-contained prompt for Week 5.
 
-1. Open `docs/handoff_week_4.md` for the Week 4 spec.
-2. Open `notebooks/04_ml_training.ipynb` in Colab Pro A100.
-3. Run cells 1-13 sequentially.
-4. After training, download the saved files back to local.
-5. Run `notebooks/05_v1_vs_v0_compare.py` to generate the comparison.
+**Three commands to determine the repo state:**
+
+```bash
+cd /root/project/datacenter_water_stress
+git status
+git log --oneline -5
+test -f data/processed/v1_predicted_wue.csv && echo "v1 outputs present" || echo "v1 outputs NOT yet pushed"
+```
+
+**Hiroaki's interactive work (Week 5 main thread):**
+
+1. Open `notebooks/04_ml_training.ipynb` in Colab Pro A100.
+2. Run cells 1-13 sequentially.
+3. After training, push the saved files back to GitHub from Colab.
+4. The next session will see `data/processed/v1_predicted_wue.csv` appear and run the v0-vs-v1 comparison.
 
 **Session-driven work (if Hiroaki asks for it):**
 
 - Reconcile training set WUE values against the actual PDFs (open question 1).
+- Implement the v0.5 design-day wet-bulb fix (open question 3) — forward-compatible patch, v0 columns preserved.
 - Run the Optuna sweep once Cell 10 shows reasonable 5-fold R² (open question 2).
-- Implement the v0.5 design-day wet-bulb fix (open question 3) — this is a v0.5 patch, not a v1 thing.
 
 ## Topline Numbers to Remember
 
@@ -197,7 +207,8 @@ These are real issues from Week 4, not nice-to-haves. Flagging for Hiroaki to we
 - **v0 ship date:** 2026-07-04
 - **v1 training set:** 43 rows (Google 4 fleet + Microsoft 9 + Meta 16 + AWS 14)
 - **v1 ML target:** WUE (L/kWh); v0 baseline RMSE on this set is 0.755 L/kWh (flat 1.26)
-- **v1 ship date:** Pending Hiroaki's Colab Pro A100 training run
+- **v1 ship date:** Pending Hiroaki's Colab Pro A100 training run (Week 5)
+- **v1.0 release process:** Hiroaki runs Colab → pushes v1 outputs → next session runs `notebooks/05_v1_vs_v0_compare.py` → `docs/v1_vs_v0_comparison.md` → ship
 
 ## Auxiliary
 

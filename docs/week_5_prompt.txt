@@ -1,0 +1,12 @@
+Resume the Water Stress Watch project at Week 5 (v1 model training on Colab Pro + post-Week-4 polish).
+
+Read `/root/project/datacenter_water_stress/docs/handoff_week_5.md` and execute it. The project status doc is `/root/project/datacenter_water_stress/docs/handoff_new_session.md`. The Week 4 report (what just shipped) is `docs/week_4_summary.md`. Everything is on GitHub: https://github.com/Hiroaki0422/datacenter-water-stress-project
+
+**First thing the next session should do:** check whether the v1 training is done. If `data/processed/v1_predicted_wue.csv` exists, run `notebooks/05_v1_vs_v0_compare.py` and ship v1.0. If it doesn't exist, the v1 training is still on Hiroaki's Colab Pro A100 — the session should stand by or do the v0.5 polish backlog (Task 5.4: design-day wet-bulb fix).
+
+12 locked decisions are in the handoff. The 5 Hiroaki decisions from Week 4 are unchanged:
+- v0.5 = bug fixes / methodology corrections; v1.0 = new model
+- Lumen/Cogent: wait for v1
+- ML target: predict WUE (L/kWh), not L/day
+- Training set: Google + Microsoft + Meta + AWS (region-level)
+- Validation: stratified 5-fold k-fold + leave-one-operator-out
