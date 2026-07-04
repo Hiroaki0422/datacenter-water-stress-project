@@ -19,12 +19,14 @@ data/raw/atlas_datacenters.geojson
 data/external/atlas_datacenters.csv
 data/external/atlas_datacenters.geojson
 
-# v1 model artifacts (large, regenerable)
+# v1 model artifacts (regenerable from notebooks/04_ml_training.ipynb)
 models/*.pkl
 models/*.joblib
-data/processed/v1_predicted_wue.csv
-docs/v1_vs_v0_comparison.md
 notebooks/.ipynb_checkpoints/
+# Note: data/processed/v1_predicted_wue.csv and docs/v1_vs_v0_comparison.md
+# are intentionally tracked. The CSV is the v1.0 headline output (308 KB);
+# the MD is the journalism-derivative comparison report. Both are small
+# enough to live in git.
 
 # OS
 .DS_Store
