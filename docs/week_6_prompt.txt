@@ -1,0 +1,21 @@
+Resume the Water Stress Watch project at Week 6 (post-v1.0 decision point).
+
+Read `/root/project/datacenter_water_stress/docs/handoff_week_6.md` and execute it. The project status doc is `/root/project/datacenter_water_stress/docs/handoff_new_session.md`. The Week 5 report (what just shipped) is `docs/week_5_summary.md`. The v1.0 outputs are on GitHub: https://github.com/Hiroaki0422/datacenter-water-stress-project
+
+**v1.0 is shipped.** US data center water use estimate: **144 B L/year** (v1 ML-corrected) vs 237 B L/year (v0 flat). 5-fold mean RMSE 0.276 vs v0 baseline 0.755. **Meta LOO collapse (R²=-717)** is the known v1.5 fix target.
+
+**First thing the next session should do:** check whether the v1.0 outputs are still on disk (`data/processed/v1_predicted_wue.csv`, `models/water_estimator_v1.pkl`). If yes, ask Hiroaki which of these he wants:
+
+1. **Task 6.1 (recommended): v1.5 cooling-type classifier** — fixes the Meta LOO collapse, addresses the 85% feature-importance-on-cooling issue. Highest impact.
+2. **Task 6.2: v0.5 design-day wet-bulb** — localizes the climate signal. Smaller, faster.
+3. **Task 6.3: PDF reconciliation** — research-heavy; tightens the 43-row training set.
+4. **Task 6.4: Lumen/Cogent reclassification** — lowest priority.
+5. **Task 6.5: Uncertainty bands on v1.0** — bootstrap, ~4 hours.
+
+Default if Hiroaki doesn't pick: **Task 6.1** (cooling-type classifier).
+
+16 locked decisions are in the handoff. The 4 Hiroaki decisions from Week 5 are:
+- v1.0 ships at 144 B L/yr as the ML-corrected estimate; v0's 237 stays as the conservative upper bound
+- Both numbers should be reported with the cooling-penalty double-counting caveat
+- The −39% shift is mostly the v0 cooling-penalty double-counting being corrected
+- The Meta LOO collapse is a known limitation; v1.5 (cooling-type classifier) fixes it

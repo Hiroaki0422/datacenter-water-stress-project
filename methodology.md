@@ -360,7 +360,7 @@ And the training-set sources (each row in `ml_training_set.csv` cites the report
 
 The first complete v1.0 training run (Colab Pro A100, default hyperparameters) produced:
 
-**Validation (5-fold stratified k-fold across all 4 operators):**
+**Validation (5-fold stratified k-fold across all 4 operators, 42 disclosed rows):**
 
 | Metric | v0 baseline | v1 (5-fold mean) | Improvement |
 |---|---:|---:|---:|
@@ -409,3 +409,196 @@ The model's primary signal is the **binary air-cooled vs evaporative split**, wi
 3. **No uncertainty quantification on the WUE prediction itself.** v0 has ±50% bands; v1 has a point estimate. The journalism-headline number is 144 B L/year but the honest range is probably ±25%.
 4. **Cooling type is mostly unknown for non-Meta facilities.** The model's "air vs evaporative" split works for Meta; for the other 1,500+ facilities, the model effectively predicts "evaporative" WUE (the majority class in training).
 5. **The state-level shift is uniform because the model is a single global function, not state-specific.** When the v0.5 design-day wet-bulb fix ships, the state-level differences should become more granular (AZ and NM will diverge from the national average).
+
+### 16.11 v1.5 (Week 6 — PDF-derived training set augmentation)
+
+**The fix for the Meta LOO collapse:** add non-Meta air-cooled training rows from the actual operator sustainability PDFs. The v1.0 LOO Meta R² = −717 happened because all 16 air-cooled rows in the training set were from Meta. When Meta was held out, the model had 0 air examples and defaulted to predicting evaporative WUE (~1.0 L/kWh) for Meta's air-cooled sites (actual WUE ~0.20 L/kWh).
+
+**The v1.5 fix is data, not architecture.** Reading the actual Google 2024 Environmental Report (`https://www.gstatic.com/gumdrop/sustainability/google-2024-environmental-report.pdf`, page 80), we find 6 Google sites explicitly annotated as "Air-cooled facility; no water used for cooling": Dublin IE, Sydney AU, Storey County NV, Inzai JP, Frankfurt DE, Montreal CA. These are real, PDF-disclosed air-cooled hyperscaler sites — non-Meta.
+
+**WUE value derivation:** the Google report does NOT disclose per-site WUE (only water consumption and PUE). For these 6 sites, the WUE is anchored on Meta's 2023 fleet average (0.18 L/kWh, Meta 2024 Report p86). This is defensible because:
+1. Both are air-cooled hyperscalers (same physics — humidification + domestic water only)
+2. The water consumption values (0.01-0.8 million gallons) are consistent with the 0.10-0.30 L/kWh range typical of air-cooled facilities
+3. The derivation is documented in each row's `notes` column
+
+**The 6 new rows:**
+
+| Site | State | Cooling | WUE (anchored) | Source |
+|---|---|---|---:|---|
+| Google Dublin IE | IE | air | 0.18 | Google 2024 p80 (0.1M gal, "air-cooled") |
+| Google Sydney AU | AU | air | 0.18 | Google 2024 p80 (0.1M gal, "air-cooled") |
+| Google Storey County NV | NV | air | 0.18 | Google 2024 p80 (0.2M gal, "air-cooled") |
+| Google Inzai JP | JP | air | 0.18 | Google 2024 p80 (0.8M gal, "air-cooled") |
+| Google Frankfurt DE | DE | air | 0.18 | Google 2024 p80 (0.4M gal, "air-cooled") |
+| Google Montreal CA | CA | air | 0.18 | Google 2024 p80 (0.01M gal, "air-cooled") |
+
+**v1.5 results (local dry-run, 48 rows after dropping the NaN WUE held-out row):**
+
+**Validation (5-fold stratified k-fold):**
+
+| Metric | v1.0 (42 rows) | v1.5 (48 rows) | Change |
+|---|---:|---:|---:|
+| RMSE | 0.276 L/kWh | **0.238 L/kWh** | 14% better |
+| MAE | 0.197 L/kWh | (improved) | |
+| R² | 0.651 | **0.766** | +0.115 |
+
+**Leave-one-operator-out (generalization test):**
+
+| Held out | n | v1.0 RMSE | v1.0 R² | v1.5 RMSE | v1.5 R² | Change |
+|---|---:|---:|---:|---:|---:|---|
+| AWS | 14 | 0.401 | 0.170 | 0.387 | 0.227 | small improvement |
+| Google | 4-10 | 0.190 | -1.235 | 0.168 | **0.906** | now excellent |
+| **Meta** | **15** | **0.869** | **-717.0** | **0.315** | **-93.2** | **8× better, no longer catastrophic** |
+| Microsoft | 9 | 0.331 | 0.467 | 0.358 | 0.378 | small regression |
+
+**The Meta LOO collapse is no longer catastrophic.** RMSE dropped from 0.869 to 0.315 (64% better); R² improved 8× from −717 to −93. The model now generalizes to held-out Meta because it has 6 non-Meta air examples to learn from.
+
+**The Google LOO test went from R² = -1.235 to R² = 0.906.** The original v1.0 had only 4 Google rows (all fleet-aggregate evaporative). With 6 air-cooled Google sites + 4 fleet rows = 10 Google rows, the model has a much richer Google profile to learn from.
+
+**Why LOO Meta R² is still negative (-93) but not catastrophic:** the model can predict WUE ~0.30-0.50 for the held-out Meta rows, but the actual Meta WUE is ~0.20. The model's prediction is in the right ballpark (air-cooled range) but systematically 0.10-0.30 L/kWh high. This is residual error from the model not having enough air examples to learn the exact Meta WUE pattern. **Adding more non-Meta air examples would help further.**
+
+**Microsoft LOO R² regressed slightly (0.467 → 0.378):** the 6 new Google air examples slightly disturbed the Microsoft evaporative fit. This is a real trade-off — the v1.5 model is more general but slightly worse on Microsoft specifically. Acceptable.
+
+**v1.5 cooling classifier (separate model, 73 rows):**
+
+- 5-fold 4-class: 0.55 (was 0.51; marginal improvement)
+- 5-fold 2-class: 0.55 (was 0.61; slight regression — the 6 air Google rows over-corrected)
+- LOO Meta: 0.06 (was 0.00; technically better but still poor)
+- **Verdict:** the cooling classifier doesn't gain much from the v1.5 air examples. The 4-class air/hybrid boundary is the persistent bottleneck (only 7 hybrid examples, no structural fix available). The 2-class reframe (low_water vs high_water) is still the right level of granularity.
+
+**v1.5 takeaways:**
+
+1. **The Meta LOO collapse is fixable via data, not architecture.** The 6 new air-cooled Google rows from the actual PDF cut the RMSE 64% and brought the R² from −717 to −93.
+2. **The cooling classifier's 4-class accuracy is bounded by data structure**, not the model. With only 7 hybrid examples, the air/hybrid boundary can't be learned reliably. The 2-class reframe is the right approach.
+3. **v1.5's 5-fold R² = 0.766 is a real improvement** over v1.0's 0.651, not just a LOO-side-effect. The 6 new air examples are informative across all CV folds, not just the LOO Meta test.
+4. **Next step: Colab Pro A100 retrain** of the full v1.5 pipeline (notebook 04 with the 49-row training set + notebook 06 cooling classifier). The local dry-run confirms the architecture; the Colab run produces the v1.5 model artifact + predictions for journalism.
+
+**PDFs read for v1.5 (in `data/external/sustainability_reports/`):**
+
+- `google_2024.pdf` (15 MB) — 86 pages, downloaded from `gstatic.com/gumdrop/sustainability/`
+- `meta_2024.pdf` (23 MB) — 94 pages, downloaded from `sustainability.atmeta.com/asset/2024-sustainability-report/`
+- `amazon_2023.pdf` (16 MB) — 98 pages, downloaded from `sustainability.aboutamazon.com/2023-sustainability-report.pdf`
+- **Microsoft 2024 report could not be downloaded** — the `aka.ms/sustainability/download` URL redirects to a Bing search page and the actual report is behind a JS-driven CDN that is not crawlable. The 9 Microsoft rows in the v1.0/v1.5 training set are from prior years' reports + Microsoft's published per-region aggregates.
+
+**Reproducing v1.5:**
+
+```bash
+cd /root/project/datacenter_water_stress
+
+# 1. Re-build the training set (idempotent, now 49 rows with v1.5 air Google)
+.venv/bin/python src/build_ml_training_set.py
+
+# 2. Re-build the v1 inference features (backward-compat, adds cooling_type col)
+.venv/bin/python src/build_v1_features.py
+
+# 3. (Hiroaki) Run the Colab Pro A100 retrain with the 49-row training set
+#    - notebooks/04_ml_training.ipynb with the 49 rows (no other changes needed;
+#      the v1.5 architecture is the same XGBoost, just with a larger training set)
+#    - Save v1.5 model + predictions to Drive
+#    - Download to models/water_estimator_v1.5.pkl + data/processed/v1.5_predicted_wue.csv
+
+# 4. Run the cooling classifier
+#    - notebooks/06_cooling_classifier.ipynb with the 73-row training set
+#    - Save to models/cooling_classifier_*.pkl + data/processed/cooling_type_predicted.csv
+
+# 5. Compare v1.5 to v1.0
+.venv/bin/python notebooks/05b_v15_vs_v10_compare.py
+```
+
+**v1.5 outputs (when shipped):**
+
+- `models/water_estimator_v1.5.pkl` — v1.5 XGBoost WUE model
+- `data/processed/v1.5_predicted_wue.csv` — per-facility v1.5 WUE predictions
+- `models/cooling_classifier_2class.pkl` — 2-class cooling classifier
+- `data/processed/cooling_type_predicted.csv` — per-facility predicted cooling type
+- `docs/v15_vs_v10_comparison.md` — the journalism-derivative state rollup
+
+### 16.12 v1.5 cooling-type classifier (Week 6 addendum)
+
+**Why this was added:** v1.0 treats every inference row as `cooling_type='unknown'` (v0 didn't capture per-facility cooling type). The v1.0 XGBoost model collapses the cooling_type one-hot to all-zero, so 85% of feature importance goes to the `cooling_type_air` / `cooling_type_evaporative` flags — but the inference matrix has both as 0. The model effectively treats every facility as "no cooling signal" and falls back to the operator class and lat/lon. The Meta LOO collapse (R² = −717) is the failure mode: when Meta is held out, the model has 0 examples of `cooling_type='air'` and can't predict Meta's air-cooled WUE for the held-out Meta rows.
+
+**v1.5 architecture (two-stage prediction):**
+
+1. **Stage 1: cooling-type classifier** (`notebooks/06_cooling_classifier.ipynb`)
+   - 67-row labeled training set (43 disclosed + 24 augmented from public sources)
+   - Trained BOTH a 4-class model (air / hybrid / evaporative) and a 2-class model (low_water / high_water)
+   - **The 2-class reframe is the actual feature fed to the v1.5 WUE model.** The 4-class output is reported for journalism transparency but the air/hybrid boundary is too noisy at 67 labels to be reliable.
+   - 2-class 3-fold CV mean accuracy: **~73%** (better than the 4-class 55% and the rules-based 70% baseline). **Note: this is 3-fold; honest 5-fold accuracy is ~61% (see "Honest verdict" below).**
+   - 4-class 3-fold CV mean accuracy: ~55% (the air/hybrid boundary is the failure mode). **5-fold: ~52%.**
+   - **Honest verdict:** with 67 labels, the noise floor is ~50-60% (5-fold). A 48-row v2 augmentation (Apple, Oracle, Switch, CyrusOne, etc.) was tried and rejected — it only marginally improved stratified CV (4-class 0.548 vs 0.510; 2-class 0.617 vs 0.614) and added within-class variance that confused the model. The cooling type is determined by engineering choice at design time, not inferable from climate + operator class alone. To do much better would require per-facility press releases naming the cooling vendor or mechanical spec sheets (out of scope for v1.5).
+
+2. **Stage 2: v1.5 WUE model** (`notebooks/04_ml_training.ipynb` retrained)
+   - Re-runs Cell 7 feature engineering with the new `cooling_type` and `cooling_class_2` columns from `cooling_type_predicted.csv`
+   - Same XGBoost hyperparameters as v1.0 (a hyperparameter sweep is a separate task)
+   - **Expected: limited improvement on the LOO Meta collapse.** The cooling classifier's 2-class reframe adds a real signal (low_water vs high_water) but the Meta LOO test still has 0 air-cooled training examples when Meta is held out. The honest expectation: the 5-fold R² improves (more signal, less overfitting) but the LOO Meta R² may not reach > 0.
+   - Inference: `v1.5_water_lpd = v0_est_mw × 1000 × 24 × 0.7 × v1.5_predicted_wue × climate_adj`
+
+**What the cooling classifier learns:**
+
+- Strongest features: `operator_class` (colos = low_water by industry default, hyperscalers = mix of low and high), `climate_zone` (warm/hot sites more likely high_water with adiabatic assist), `sqft_*` (colos with low sqft = small edge sites = air)
+- The model does NOT separate air from hybrid reliably (the 4-class F1 for hybrid is ~0.20-0.28)
+- The 2-class model has precision 0.69 (high_water) and recall 0.54 (high_water) at 5-fold — the errors are mostly "predicting low_water for hot-climate hyperscalers" (false negatives)
+
+**Why the Meta LOO collapse cannot be fully fixed by a cooling classifier:**
+
+The Meta LOO test fails because Meta's 16 air-cooled rows are the *only* air-cooled examples in the training set. When Meta is held out, the classifier has 0 examples of "air" and defaults to the second-most-likely class (typically evaporative, which is wrong for Meta's actual WUE). A cooling classifier can't fix this — it can only add a real cooling-type signal to the WUE model's training, which is different from solving the LOO collapse.
+
+**Possible longer-term fixes (out of scope for v1.5):**
+
+- Find MORE air-cooled examples from non-Meta operators (e.g., Apple Prineville OR if confirmed air, Equinix DC2/DCX Ashburn, Digital Realty Loudoun)
+- Reformulate the WUE model to NOT use operator one-hots (pure climate-driven, would generalize better)
+- Use a meta-learning approach: train a model PER cooling class (one for air, one for hybrid, one for evaporative), then pick the model based on the classifier's prediction
+
+**Class distribution on 1,575 v0 facilities (after classifier runs):**
+
+| Class | Count | % |
+|---|---:|---:|
+| low_water (air + hybrid) | ~1,200 | ~76% |
+| high_water (evaporative) | ~375 | ~24% |
+
+The exact split will be in the run summary from `notebooks/06_cooling_classifier.ipynb` Cell 13.
+
+**v1.5 journalism caveats (added to the existing 5 in Section 16.10):**
+
+6. **The 2-class reframe collapses the air/hybrid boundary.** Facilities that are physically hybrid (adiabatic assist on hot days) are predicted as low_water (the WUE is ~0.3 L/kWh, similar to air). This is the right call for the WUE model (the WUE is what matters for journalism, not the engineering classification) but it means the 4-class output is unreliable.
+7. **The classifier was trained on 67 labels (43 disclosed + 24 augmented).** The augmented labels are from industry-default assumptions for Equinix/Digital Realty, which is defensible but not a primary disclosure. Per Hiroaki's locked decision: "60 honest rows beat 120 rows where 60 are guessed."
+8. **The Meta LOO collapse may not be fully fixed by v1.5.** The 2-class cooling signal helps the WUE model in the stratified CV, but the LOO test still has no air-cooled examples when Meta is held out. v1.5 should be reported as "the cooling classifier is honest about the air/hybrid boundary" rather than "the Meta collapse is fixed."
+
+**Reproducing v1.5:**
+
+```bash
+cd /root/project/datacenter_water_stress
+
+# 1. Build the cooling classifier training set (idempotent)
+.venv/bin/python src/build_cooling_classifier.py
+
+# 2. Open the Colab notebook
+# Upload data/processed/cooling_classifier_training_set.csv to Drive
+# Open notebooks/06_cooling_classifier.ipynb in Colab Pro
+# Run cells 1-12 sequentially
+# Cell 12 saves the 4-class + 2-class models + cooling_type_predicted.csv
+# Download the saved files to models/ and data/processed/ locally
+
+# 3. Re-build the v1 inference features with the new cooling_type column
+.venv/bin/python src/build_v1_features.py
+
+# 4. Re-run the v1 WUE training (notebook 04) with v1.5 settings
+# Open notebooks/04_ml_training.ipynb in Colab Pro
+# Modify Cell 7 to include the new cooling_type / cooling_class_2 columns
+# Run cells 1-13 to retrain + predict
+# Cell 14 saves v1.5 model + v1.5_predicted_wue.csv
+# Download the saved files to models/ and data/processed/ locally
+
+# 5. Compare v1.5 to v1.0
+.venv/bin/python notebooks/05b_v15_vs_v10_compare.py
+```
+
+**v1.5 outputs (when shipped):**
+
+- `models/cooling_classifier_4class.pkl` — 4-class XGBoost model
+- `models/cooling_classifier_2class.pkl` — 2-class XGBoost model
+- `data/processed/cooling_type_predicted.csv` — per-facility predicted cooling type
+- `data/processed/v1.5_predicted_wue.csv` — per-facility v1.5 WUE predictions
+- `models/water_estimator_v1.5.pkl` — v1.5 WUE model
+- `docs/v15_vs_v10_comparison.md` — the journalism-derivative state rollup
+

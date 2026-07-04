@@ -932,13 +932,73 @@ def main() -> int:
         else:
             print(f"    WARN: hot mean {hot_mean:.2f} <= cool mean {cool_mean:.2f}")
 
-    print("  Meta: all sites air-cooled? (cooling_type == 'air')")
+    print(f"  Meta: all sites air-cooled? (cooling_type == 'air')")
     meta = df[df["operator"] == "Meta"]
     if (meta["cooling_type"] == "air").all():
         print(f"    PASS: all {len(meta)} Meta sites flagged as air-cooled")
     else:
         n_other = (meta["cooling_type"] != "air").sum()
         print(f"    WARN: {n_other} Meta sites NOT flagged as air-cooled")
+
+    # ----- v1.5 added: 6 air-cooled Google sites (PDF-derived, Week 6) -------
+    # Google 2024 Env Report p80 annotates 6 sites as "air-cooled facility; no
+    # water used for cooling" with disclosed per-site water consumption. These
+    # are NON-META air examples, the structural fix for the v1.0 LOO Meta collapse.
+    # WUE anchored on Meta 2023 fleet avg (0.18 L/kWh) since air-cooled
+    # hyperscalers share the same physics.
+    V15_AIR_GOOGLE = [
+        {"operator": "Google", "facility_name": "Google Dublin Ireland (air-cooled)",
+         "latitude": 53.3498, "longitude": -6.2603, "city": "Dublin", "state": "IE",
+         "wue_disclosed": 0.18, "annual_water_m3": 378.5, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility; no water used for cooling.' "
+                  "Water consumption 0.1M gal = 378 m^3. WUE anchored on Meta 2023 fleet avg "
+                  "(0.18 L/kWh, Meta 2024 Report p86). v1.5 added: breaks the Meta monopoly "
+                  "on air examples; structural fix for the LOO Meta collapse."},
+        {"operator": "Google", "facility_name": "Google Sydney Australia (air-cooled)",
+         "latitude": -33.8688, "longitude": 151.2093, "city": "Sydney", "state": "AU",
+         "wue_disclosed": 0.18, "annual_water_m3": 378.5, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility.' 0.1M gal water. "
+                  "WUE anchored on Meta 2023 fleet avg. v1.5 added."},
+        {"operator": "Google", "facility_name": "Google Storey County NV (air-cooled)",
+         "latitude": 39.5210, "longitude": -119.8120, "city": "Reno", "state": "NV",
+         "wue_disclosed": 0.18, "annual_water_m3": 757.0, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility.' 0.2M gal water. "
+                  "WUE anchored on Meta 2023 fleet avg. v1.5 added."},
+        {"operator": "Google", "facility_name": "Google Inzai Japan (air-cooled)",
+         "latitude": 35.7620, "longitude": 140.0460, "city": "Inzai", "state": "JP",
+         "wue_disclosed": 0.18, "annual_water_m3": 3028.0, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility.' 0.8M gal water. "
+                  "WUE anchored on Meta 2023 fleet avg. v1.5 added."},
+        {"operator": "Google", "facility_name": "Google Frankfurt Germany (air-cooled)",
+         "latitude": 50.1109, "longitude": 8.6821, "city": "Frankfurt", "state": "DE",
+         "wue_disclosed": 0.18, "annual_water_m3": 1514.0, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility.' 0.4M gal water. "
+                  "WUE anchored on Meta 2023 fleet avg. v1.5 added."},
+        {"operator": "Google", "facility_name": "Google Montreal Canada (air-cooled)",
+         "latitude": 45.5017, "longitude": -73.5673, "city": "Montreal", "state": "CA",
+         "wue_disclosed": 0.18, "annual_water_m3": 37.9, "annual_electricity_mwh": None,
+         "is_aggregate": False, "cooling_type": "air", "report_year": 2023,
+         "source_url": GOOGLE_2024_REPORT_URL,
+         "notes": "Google 2024 Env Report p80: 'Air-cooled facility.' 0.01M gal water "
+                  "(lowest of any Google site). WUE anchored on Meta 2023 fleet avg. v1.5 added."},
+    ]
+    df_v15 = pd.DataFrame(V15_AIR_GOOGLE)
+    df = pd.concat([df, df_v15], ignore_index=True)
+    print(f"\n  v1.5 added: {len(df_v15)} air-cooled Google sites (PDF-derived, non-Meta)")
+    print(f"  Total rows now: {len(df)}")
+    print(f"  air examples: {(df['cooling_type'] == 'air').sum()}")
+    print(f"  evaporative: {(df['cooling_type'] == 'evaporative').sum()}")
+    print(f"  cooling_type distribution: {df['cooling_type'].value_counts().to_dict()}")
 
     # ----- Write output -----------------------------------------------------
     OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)

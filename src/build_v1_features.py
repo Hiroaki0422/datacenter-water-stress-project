@@ -4,10 +4,18 @@ build_v1_features.py — Build the v1 inference feature matrix for ML scoring.
 Takes the v0 inference table (1,575 rows) and adds the features the v1 XGBoost
 model needs to predict per-facility WUE.
 
+v1.5 update (Week 6): adds the predicted_cooling_type column from
+data/processed/cooling_type_predicted.csv (produced by
+notebooks/06_cooling_classifier.ipynb). The v1.5 WUE model uses this as a
+real categorical feature instead of the v1.0 "cooling_type=unknown" proxy.
+
 Inputs
 ------
 data/processed/us_dc_with_stress.csv
     1,575 rows × 25 columns. v0 inference table (Week 2 deliverable).
+data/processed/cooling_type_predicted.csv (optional, v1.5+)
+    1,575 rows with `dc_id` and `predicted_cooling_type` columns.
+    If absent, cooling_type is filled with 'unknown' (v1.0 behavior).
 
 Outputs
 -------
@@ -26,8 +34,8 @@ data/processed/v1_inference_features.csv
       - lat_lon_grid_id               (int)  : integer encoding of the above
       - is_hawaii_alaska              (bool) : edge case flag (Hawaii/Alaska)
       - is_water_stressed_state       (bool) : True when state is High or Extremely-High
-                                                (this is the v0 stress_stressor_match
-                                                 column already; copied for v1 clarity)
+      - cooling_type                  (str)  : v1.5: 'air' / 'hybrid' / 'evaporative'
+                                                v1.0: 'unknown' (when no prediction file)
 
 The v0 columns are preserved unchanged. The v1 model can use the v0 physics
 columns (est_mw, est_liters_per_day, climate_adj) as baselines to compare against.
@@ -70,6 +78,7 @@ from estimate_power import classify_provider, CLASS_DEFAULT_MW  # noqa: E402
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 INPUT_CSV = PROJECT_ROOT / "data" / "processed" / "us_dc_with_stress.csv"
 OUTPUT_CSV = PROJECT_ROOT / "data" / "processed" / "v1_inference_features.csv"
+COOLING_TYPE_PRED_CSV = PROJECT_ROOT / "data" / "processed" / "cooling_type_predicted.csv"
 
 
 # Grid cell size in degrees. 1° × 1° ≈ 100 km at the equator.
@@ -145,6 +154,25 @@ def main() -> int:
     # ----- Water stress flag (copy for v1 clarity) --------------------------
     df["is_water_stressed_state"] = df["stress_stressor_match"].astype(bool)
 
+    # ----- Cooling type (v1.5: from classifier; v1.0: 'unknown') -------------
+    if COOLING_TYPE_PRED_CSV.exists():
+        ct_pred = pd.read_csv(COOLING_TYPE_PRED_CSV)
+        # Cooling type is per-facility. Merge on dc_id.
+        df = df.merge(
+            ct_pred[["dc_id", "predicted_cooling_type"]].rename(
+                columns={"predicted_cooling_type": "cooling_type"}
+            ),
+            on="dc_id",
+            how="left",
+        )
+        df["cooling_type"] = df["cooling_type"].fillna("unknown")
+        print(f"\n=== v1.5 cooling type predictions loaded ===")
+        print(f"  distribution: {df['cooling_type'].value_counts().to_dict()}")
+    else:
+        df["cooling_type"] = "unknown"
+        print(f"\n=== cooling type: 'unknown' (no {COOLING_TYPE_PRED_CSV.name}) ===")
+        print(f"  (v1.0 behavior; v1.5 needs notebooks/06_cooling_classifier.ipynb first)")
+
     # ----- Report the v1 feature summary ------------------------------------
     print("\n=== v1 feature columns added ===")
     new_cols = [
@@ -155,6 +183,7 @@ def main() -> int:
         "lat_lon_grid_id",
         "is_hawaii_alaska",
         "is_water_stressed_state",
+        "cooling_type",
     ]
     for c in new_cols:
         if df[c].dtype == bool:
@@ -164,7 +193,7 @@ def main() -> int:
             print(f"  {c:30s} : {df[c].dtype} unique={n_unique}")
 
     print(f"\n  Total columns: {len(df.columns)} (was 25 in v0)")
-    print(f"  Added: {len(new_cols)} v1 features")
+    print(f"  Added: {len(new_cols)} v1 features (including cooling_type)")
 
     # ----- Sanity check: WUE-default baseline can be reproduced --------------
     # The v0 physics formula:
@@ -185,6 +214,7 @@ def main() -> int:
     df.to_csv(OUTPUT_CSV, index=False)
     print(f"\nWrote {len(df):,} rows to {OUTPUT_CSV.relative_to(PROJECT_ROOT)}")
     print("Next: open notebooks/04_ml_training.ipynb in Colab Pro and run cells 1-13.")
+    print("(For v1.5 with cooling_type: also run notebooks/06_cooling_classifier.ipynb first.)")
     return 0
 
 
