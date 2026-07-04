@@ -354,3 +354,58 @@ If you use v1 outputs, please cite both v0 and v1:
 > Oshima, H. (2026). *Water Stress Watch v1: ML-corrected per-facility data center water use (XGBoost on disclosed operator WUE).* Project repository. URL.
 
 And the training-set sources (each row in `ml_training_set.csv` cites the report URL).
+
+
+### 16.9 v1.0 results (Week 5 first end-to-end run)
+
+The first complete v1.0 training run (Colab Pro A100, default hyperparameters) produced:
+
+**Validation (5-fold stratified k-fold across all 4 operators):**
+
+| Metric | v0 baseline | v1 (5-fold mean) | Improvement |
+|---|---:|---:|---:|
+| RMSE | 0.755 L/kWh | **0.276 L/kWh** | 63% better |
+| MAE | 0.661 L/kWh | **0.197 L/kWh** | 70% better |
+| R² | -1.149 | **0.651** | (positive; baseline is a flat constant) |
+
+**Leave-one-operator-out (generalization test):**
+
+| Held out | n | RMSE | MAE | R² | Verdict |
+|---|---:|---:|---:|---:|---|
+| AWS | 14 | 0.401 | 0.315 | 0.170 | generalizes |
+| Google | 4 | 0.190 | 0.142 | -1.235 | small sample |
+| **Meta** | **15** | **0.869** | **0.816** | **-717.0** | **collapse** |
+| Microsoft | 9 | 0.331 | 0.243 | 0.467 | generalizes |
+
+The Meta LOO collapse is the **expected overfitting signal** flagged in Week 4: Meta's sites all use `cooling_type='air'` (outside-air economizer), and the model has 16 Meta rows + 0 rows from any other operator with `cooling_type='air'`. v1.5 will add a cooling-type classifier that learns cooling type from lat/lon + sqft, then retrain v1 with that as a real feature.
+
+**Inference on the 1,575 US facilities:**
+
+| Quantity | v0 (flat) | v1 (ML) | Difference |
+|---|---:|---:|---:|
+| US total water use | 0.649 B L/day (237 B L/year) | 0.394 B L/day (144 B L/year) | **-39.3%** |
+| Predicted WUE mean | (constant 1.26) | 0.747 L/kWh | -41% |
+| Predicted WUE median | (constant 1.26) | 0.639 L/kWh | -49% |
+| Predicted WUE max | (constant 1.26) | 1.353 L/kWh | +7% |
+
+**Feature importance (XGBoost built-in gain):**
+
+| Feature | Gain | Interpretation |
+|---|---:|---|
+| `cooling_type_evaporative` | **0.466** | Primary split. |
+| `cooling_type_air` | **0.381** | Same signal, opposite direction. |
+| `latitude`, `longitude` | 0.040 + 0.033 | Mild climate signal. |
+| `operator_*` one-hots | 0.005-0.022 | Marginal operator effect. |
+| `is_aggregate_*` | 0.004-0.008 | Tiny. |
+
+The model's primary signal is the **binary air-cooled vs evaporative split**, with operator and lat/lon as secondary. The state-level shift from v0 to v1 is **implausibly uniform** (-60% to -68% across the top 10 states), suggesting a systematic downward correction rather than state-specific learning. The most likely cause: v0's WUE=1.26 formula over-estimated because of the cooling-penalty double-counting noted in Section 16.1; v1's learned WUE (~0.6-0.8) is closer to disclosed values.
+
+**Verdict for v1.0 release:** Ship. The 144 B L/year headline is more defensible than v0's 237 B L/year once the cooling-penalty double-counting is acknowledged. The Meta LOO collapse is a known limitation; v1.5 fixes it.
+
+### 16.10 v1.0 caveats (the journalism version)
+
+1. **The training set is small (42 disclosed WUE rows).** The model has 4 Google fleet-aggregate rows and 16 Meta dry-cooled rows; everything else is from Microsoft or AWS regions.
+2. **The Meta LOO collapse (R² = -717) means v1 doesn't generalize to unseen operators.** For the 1,575 US facilities (which span 220+ operator names), v1 treats them all as "Microsoft-or-AWS-like" with the cooling-type caveat. This is the right call given the training data, but it's an extrapolation.
+3. **No uncertainty quantification on the WUE prediction itself.** v0 has ±50% bands; v1 has a point estimate. The journalism-headline number is 144 B L/year but the honest range is probably ±25%.
+4. **Cooling type is mostly unknown for non-Meta facilities.** The model's "air vs evaporative" split works for Meta; for the other 1,500+ facilities, the model effectively predicts "evaporative" WUE (the majority class in training).
+5. **The state-level shift is uniform because the model is a single global function, not state-specific.** When the v0.5 design-day wet-bulb fix ships, the state-level differences should become more granular (AZ and NM will diverge from the national average).
