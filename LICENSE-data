@@ -1,0 +1,40 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+This license applies to all data files in `data/` and all documentation in
+`docs/`, `case_studies/`, `README.md`, and `methodology.md` in this repository.
+
+You are free to:
+- Share — copy and redistribute the material in any medium or format
+- Adapt — remix, transform, and build upon the material for any purpose, even commercially
+
+Under the following terms:
+- Attribution — You must give appropriate credit, provide a link to the license,
+  and indicate if changes were made. You may do so in any reasonable manner,
+  but not in any way that suggests the licensor endorses you or your use.
+- No additional restrictions — You may not apply legal terms or technological
+  measures that legally restrict others from doing anything the license permits.
+
+Full license text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+---
+
+WRI Aqueduct sub-component:
+
+The state-level Baseline Water Stress (BWS) data in
+`data/external/wri_aqueduct/us_state_stress.csv` is derived from the
+WRI Aqueduct 4.0 dataset, which is licensed under CC BY 4.0 by the
+World Resources Institute.
+
+Citation (required for WRI data):
+  Kuzma, S., Bierkens, M.F.P., Lakshman, S., Luo, T., Saccoccia, L.,
+  Sutanudjaja, E.H., Van Beek, R. (2023). Aqueduct 4.0: Updated
+  decision-relevant global water risk indicators. Technical Note.
+  Washington, DC: World Resources Institute.
+  https://doi.org/10.46830/writn.23.00061
+
+Orimadros sub-component:
+
+The raw data center locations in `data/raw/orimadros_datacenters.csv`
+are derived from the Orimadros datacenter-map project, which is
+licensed under the MIT License:
+  https://github.com/Orimadros/datacenter-map

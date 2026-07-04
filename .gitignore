@@ -1,0 +1,31 @@
+# venv and cache
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Open-Meteo cache (regenerable, ~50 MB)
+data/external/open_meteo/
+
+# WRI raw cache (regenerable, ~5 MB)
+data/external/wri_aqueduct/aqueduct40_us_province_bws.json
+
+# ATLAS (All Rights Reserved — do NOT track)
+data/raw/atlas_datacenters.csv
+data/raw/atlas_datacenters.geojson
+data/external/atlas_datacenters.csv
+data/external/atlas_datacenters.geojson
+
+# v1 model artifacts (large, regenerable)
+models/*.pkl
+models/*.joblib
+data/processed/v1_predicted_wue.csv
+docs/v1_vs_v0_comparison.md
+notebooks/.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
