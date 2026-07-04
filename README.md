@@ -24,35 +24,45 @@ This is the **v0 (proof-of-concept)** release. The methodology is a single physi
 ```
 datacenter_water_stress/
 ├── README.md                       # this file
-├── methodology.md                  # citable methodology writeup
+├── LICENSE                         # MIT (code)
+├── LICENSE-data                    # CC-BY 4.0 (data + docs)
+├── methodology.md                  # citable methodology writeup (v0 + v1)
 ├── docs/
 │   ├── v0_plan.md                  # original v0 plan
 │   ├── data_dictionary.md          # column-by-column schema for all datasets
 │   ├── week_1_summary.md           # Week 1 (data cleaning) report
 │   ├── week_2_summary.md           # Week 2 (estimation pipeline) report
-│   └── handoff_*.md                # session handoff docs
+│   ├── week_4_summary.md           # Week 4 (v1 ML training foundation) report
+│   ├── handoff_new_session.md      # project status snapshot
+│   └── handoff_week_*.md           # session handoff docs
 ├── data/
-│   ├── raw/                        # Orimadros MIT scrape + ATLAS reference
-│   ├── processed/                  # v0 outputs: us_dc_with_stress.csv (FINAL)
+│   ├── raw/                        # Orimadros MIT scrape (ATLAS reference excluded)
+│   ├── processed/                  # v0 outputs + v1 training set + v1 features
 │   └── external/
 │       ├── wri_aqueduct/           # WRI BWS data + raw API response
 │       ├── us_states_20m.geojson   # US state polygons (Census, public domain)
-│       └── open_meteo/             # cached Open-Meteo API responses
+│       └── open_meteo/             # cached Open-Meteo API responses (gitignored)
 ├── src/
 │   ├── clean_locations.py          # Week 1: state normalization + dedup
 │   ├── build_wri_stress_lookup.py  # Week 1: WRI pull + state-level aggregation
 │   ├── estimate_power.py           # Week 2: operator-class MW heuristic
 │   ├── fetch_climate.py            # Week 2: Open-Meteo wet-bulb pull (cached)
 │   ├── estimate_water.py           # Week 2: physics formula
-│   ├── join_water_stress.py        # Week 2: WRI state-level join
-│   └── build_map.py                # Week 3: Folium/Leaflet map
+│   ├── join_water_stress.py        # Week 2: WRI state-level stress merge
+│   ├── build_map.py                # Week 3: Folium/Leaflet map
+│   ├── build_ml_training_set.py    # Week 4: v1 training set from operator disclosures
+│   ├── build_v1_features.py        # Week 4: v1 inference feature matrix
+│   └── v1_output_schema.py         # Week 4: schema doc for v1 model output
 ├── notebooks/
-│   ├── 03_physics_model.py         # Week 2: sanity check + sensitivity
+│   ├── 03_physics_model.py         # Week 2: v0 sanity check + sensitivity
+│   ├── 04_ml_training.ipynb        # Week 4: Colab Pro A100 v1 training skeleton
+│   ├── 05_v1_vs_v0_compare.py      # Week 4: post-training v0-vs-v1 comparison
 │   └── explore_orimadros_*.py      # Week 1: data exploration
 ├── case_studies/
-│   └── phoenix_az.md               # Week 3: Phoenix AZ narrative
+│   ├── phoenix_az.md               # Week 3: Phoenix AZ narrative
+│   └── blog_draft.md               # Week 3: blog post draft
 ├── assets/
-│   └── map_v0.html                 # Week 3: the public map (FINAL)
+│   └── map_v0.html                 # Week 3: the public map (FINAL, 8.4 MB)
 └── requirements.txt
 ```
 
@@ -132,7 +142,7 @@ I am not anti-AI or anti-data-center. I am pro-transparency. The next decade of 
 ## What's next
 
 - **v0.5 (this summer):** design-day wet-bulb instead of annual mean; Lumen/Cogent reclassification pass; data refresh.
-- **v1 (2026 Q3, on Colab Pro):** XGBoost model trained on Google/Microsoft/Meta disclosed WUE; cooling-type classifier; narrower uncertainty bands.
+- **v1 (2026 Q3, on Colab Pro):** XGBoost model trained on Google/Microsoft/Meta/AWS disclosed WUE. **Training foundation shipped (Week 4); actual training in progress on Colab Pro A100.** See `notebooks/04_ml_training.ipynb`. The v1 model must beat the v0 baseline (RMSE = 0.755 L/kWh, R² = -1.149 on the 42 disclosed WUE values).
 - **v1.5 (2026 Q4):** sub-basin (HUC-8) stress overlay; multi-state Western case study.
 - **v2 (2027):** global coverage; per-facility disclosed water use (as it becomes available).
 

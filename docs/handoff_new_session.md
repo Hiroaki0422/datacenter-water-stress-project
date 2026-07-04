@@ -14,6 +14,8 @@
 | **4** — v1 ML training kickoff | Training set (43 rows), v1 features (1,575 × 42), Colab notebook skeleton (16 cells), methodology Section 16, output schema | ✅ Complete |
 | **5+** — v1 model training on Colab Pro | Hiroaki runs the XGBoost training interactively on A100; downloads model + predictions | 🟡 **Next** |
 
+**Repository:** https://github.com/Hiroaki0422/datacenter-water-stress-project (public, MIT code + CC-BY 4.0 data/docs)
+
 > **Important:** This handoff is current as of 2026-07-04. Earlier handoff versions (e.g. `handoff_week_2.md`) describe their respective weeks and are still on disk for reference, but the next session should start from `docs/handoff_week_4.md`.
 
 ---
